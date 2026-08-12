@@ -42,32 +42,16 @@ capacity and `indexer.replicaCount` for background indexing capacity.
 ## Image Publication
 
 `.github/workflows/container.yml` builds the production Dockerfile on pull
-requests and publishes `linux/amd64` images to the regional
-`staging/hydradb` Amazon ECR repository after a push to `main`. It follows the
-HydraDB deployment convention by publishing the full commit SHA and `latest`
-tags through the shared AWS role. Every published image also has an OCI digest,
-an SBOM, and build-provenance attestation. Argo CD is pinned to the digest and
-never deploys by `latest`.
+requests and publishes `linux/amd64` images to GitHub Container Registry when a
+`v*` tag is pushed. Published images are named
+`ghcr.io/<repository-owner>/hydradb` and receive the release version, compatible
+minor and major versions, the commit SHA, and `latest` tags. Release images
+also include an OCI digest, an SBOM, and build-provenance attestation.
 
-The publisher uses GitHub OIDC to assume the organization-provided
-`AWS_ROLE_ARN` secret, matching `hydradb-application`. Do not store AWS access
-keys in GitHub. The ECR repository and role access are provisioned through the
-team's existing AWS infrastructure process.
-
-After publishing, the workflow checks out `usecortex/hydradb-argocd` with the
-existing `INFRA_REPO_TOKEN`, synchronizes this canonical chart into the infra
-repository, updates the staging tag and digest, validates the Helm release, and
-pushes the deployment commit to `main`. This is the same promotion path used by
-HydraDB application and ingestion services.
-
-Set the `HYDRADB_STAGING_DEPLOY_ENABLED` repository variable to `true` only
-after the staging ECR repository, S3 roles, certificates, and client-auth Secret
-exist. The workflow then uses the shared `ARGOCD_AUTH_TOKEN` to refresh, sync,
-and wait for the `hydradb-staging` application to become healthy.
-
-EKS nodes pull the private image through their IAM node role. Attach
-`AmazonEC2ContainerRegistryPullOnly` or equivalent repository-scoped pull
-permissions; no registry password or Kubernetes image-pull Secret is required.
+The workflow uses the repository-scoped `GITHUB_TOKEN`; no long-lived registry
+credentials are required. Grant the workflow `packages: write` permission and
+set the resulting GHCR package visibility to match the intended deployment.
+Deployment systems should pin the image digest rather than `latest`.
 
 ## Security
 
